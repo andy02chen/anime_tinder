@@ -2,3 +2,5 @@ venv/
 __pycache__/
 *.pyc
 .env
+backend\app\anime.db
+backend\app\.env
