@@ -38,6 +38,9 @@ def get_db():
 def startup():
     models.Base.metadata.create_all(bind=engine)
 
+@app.get("/oauth/callback")
+def oauth_callback(db: Session = Depends(get_db)):
+    return "a"
 
 # Auth
 @app.get("/oauth")
@@ -45,12 +48,12 @@ async def oauth_login(db: Session = Depends(get_db)):
 
     # Generate token for oauth
     user_session = generate_session_token()
-    oauth_state = generate_state() # TODO store in frontend
+    oauth_state = generate_state()
     code_verifier = generate_code_verifier()
     code_challenge = generate_code_challenge(code_verifier)
 
     # Store values
-    store_oauth_session(db, user_session, oauth_state, code_verifier)
+    await store_oauth_session(db, user_session, oauth_state, code_verifier)
 
     # Redirect user
     auth_url = (
@@ -63,14 +66,14 @@ async def oauth_login(db: Session = Depends(get_db)):
     return RedirectResponse(auth_url)
 
 # Store the Auth session
-def store_oauth_session(db: Session, session_id: str, state: str, code_verifier: str):
+async def store_oauth_session(db: Session, session_id: str, state: str, code_verifier: str):
     oauth = OAuthSession(
         session_id=session_id,
         oauth_state=state,
         code_verifier=code_verifier
     )
-    db.add(oauth)
-    db.commit()
+    await db.add(oauth)
+    await db.commit()
 
 # Generate random state
 def generate_state(length: int = 32) -> str:
