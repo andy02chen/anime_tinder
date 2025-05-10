@@ -9,6 +9,7 @@ import base64
 import hashlib
 import secrets
 from models import OAuthSession, Users
+from fastapi.responses import RedirectResponse
 
 app = FastAPI()
 
@@ -21,7 +22,7 @@ app.add_middleware(
 
 load_dotenv()
 
-API_URL = os.getenv("OAUTH_REDIRECT_URI")
+API_URL = os.getenv("URL")
 CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET")
 
@@ -51,7 +52,15 @@ async def oauth_login(db: Session = Depends(get_db)):
     # Store values
     store_oauth_session(db, user_session, oauth_state, code_verifier)
 
-    return {"message": "Start OAuth"}
+    # Redirect user
+    auth_url = (
+        f"https://myanimelist.net/v1/oauth2/authorize"
+        f"?response_type=code&client_id={CLIENT_ID}"
+        f"&state={oauth_state}&redirect_uri={API_URL}oauth/callback"
+        f"&code_challenge={code_challenge}&code_challenge_method=plain"
+    )
+
+    return RedirectResponse(auth_url)
 
 # Store the Auth session
 def store_oauth_session(db: Session, session_id: str, state: str, code_verifier: str):

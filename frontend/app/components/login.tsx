@@ -7,11 +7,9 @@ const Login = () => {
 
   const oauth = async () => {
     try {
-      const res = await fetch("http://localhost:8000/oauth");
-      const data = await res.json();
-      setMsg(data.message);
+      window.location.href = 'http://localhost:8000/oauth';
     } catch (error) {
-      setMsg("Failed to start OAuth");
+      console.log('aa');
     }
   }
 
