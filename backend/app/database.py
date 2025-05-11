@@ -1,11 +1,19 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+from dotenv import load_dotenv
+import os
 
-DATABASE_URL = "sqlite:///./anime.db"
+load_dotenv()
 
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-Base = declarative_base()
+# Use the correct async format for PostgreSQL URL
+# Example: postgresql+asyncpg://user:password@localhost/dbname
+engine = create_async_engine(DATABASE_URL, echo=True)
+
+# Async session factory
+SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
+
+# Base model with async support
+class Base(DeclarativeBase):
+    pass

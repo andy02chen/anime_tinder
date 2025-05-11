@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import models, schemas
-from database import engine, SessionLocal
+from database import engine, SessionLocal, Base
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from dotenv import load_dotenv
 import os
 import base64
@@ -26,17 +27,22 @@ API_URL = os.getenv("URL")
 CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET")
 
-def get_db():
-    try:
-        db = SessionLocal()
-        yield db
-    finally:
-        db.close()
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-# Create table on start up
 @app.on_event("startup")
-def startup():
-    models.Base.metadata.create_all(bind=engine)
+async def startup():
+    await init_db()
+
+async def get_db() -> AsyncSession:
+    async with SessionLocal() as session:
+        yield session
+
+# # Create table on start up
+# @app.on_event("startup")
+# def startup():
+#     models.Base.metadata.create_all(bind=engine)
 
 @app.get("/oauth/callback")
 def oauth_callback(db: Session = Depends(get_db)):
@@ -44,7 +50,7 @@ def oauth_callback(db: Session = Depends(get_db)):
 
 # Auth
 @app.get("/oauth")
-async def oauth_login(db: Session = Depends(get_db)):
+async def oauth_login(db: AsyncSession = Depends(get_db)):
 
     # Generate token for oauth
     user_session = generate_session_token()
@@ -66,13 +72,13 @@ async def oauth_login(db: Session = Depends(get_db)):
     return RedirectResponse(auth_url)
 
 # Store the Auth session
-async def store_oauth_session(db: Session, session_id: str, state: str, code_verifier: str):
+async def store_oauth_session(db: AsyncSession, session_id: str, state: str, code_verifier: str):
     oauth = OAuthSession(
         session_id=session_id,
         oauth_state=state,
         code_verifier=code_verifier
     )
-    await db.add(oauth)
+    db.add(oauth)
     await db.commit()
 
 # Generate random state
