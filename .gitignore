@@ -25,3 +25,8 @@ dist-ssr
 
 back.sh
 front.sh
+backend/start.sh
+frontend/start.sh
+backernd/__pycache__/
+frontend/anime-tinder/node_modules/
+frontend/anime-tinder/dist/
