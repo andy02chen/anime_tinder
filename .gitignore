@@ -27,6 +27,10 @@ back.sh
 front.sh
 backend/start.sh
 frontend/start.sh
-backernd/__pycache__/
+backend/__pycache__/
 frontend/anime-tinder/node_modules/
 frontend/anime-tinder/dist/
+backend/.env
+venv/
+.env
+backend/models/__pycache__
