@@ -9,8 +9,9 @@ from models.anime import User, OAuthRequest, UserToken
 import secrets
 import os
 from dotenv import load_dotenv
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
+import httpx
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -81,10 +82,69 @@ async def redirect_to_mal_oauth():
 
 @app.get('/oauth/callback')
 async def oauth_callback(
-    code: str = Query(...),
-    state: str = Query(...)
-):
-    return {"code": code, "state": state}
+        code: str = Query(...),
+        state: str = Query(...),
+        session: Session = Depends(get_session)
+    ):
+
+    oauth_request = session.exec(select(OAuthRequest).where(OAuthRequest.state == state)).first()
+    if not oauth_request:
+        return {"error": "Invalid state"}
+
+    result = await exchange_code_for_token(code, oauth_request.code_verifier)
+
+    if result["error"]:
+        return {"error": "Invalid state"}
+    else:
+        access_token = result["access_token"]
+        refresh_token = result["refresh_token"]
+        expires_at = result["expires_at"]
+
+    user = User(username="MAL Username")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    user_token = UserToken(
+        user_id=user.id,
+        mal_access_token=access_token,
+        mal_refresh_token=refresh_token,
+        expires_at=expires_at
+    )
+    session.add(user_token)
+    session.commit()
+
+    return {"message": "Login successful"}
+
+async def exchange_code_for_token(code: str, code_verifier: str):
+    url="https://myanimelist.net/v1/oauth2/token"
+    data={
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": REDIRECT_URI,
+        "code_verifier": code_verifier
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, data=data)
+
+        if resp.status_code != 200:
+            return {
+                "error": True,
+                "status": resp.status_code,
+                "body": resp.json()
+            }
+
+        token_data = resp.json()
+
+        return {
+            "error": False,
+            "access_token": token_data["access_token"],
+            "refresh_token": token_data["refresh_token"],
+            "expires_at": datetime.now(timezone.utc) + timedelta(seconds=token_data["expires_in"])
+        }
 
 # Generating
 def generate_code_verifier():
