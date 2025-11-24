@@ -1,2 +1,3 @@
 [ ] store access and refresh token
-[ ] 
+[ ] maybe redirect when error on oauth
+[ ] when user takes too long to oauth accept

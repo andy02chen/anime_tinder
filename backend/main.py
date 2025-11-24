@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
-from models.anime import User, OAuthRequest, UserToken
+from models.anime import User, OAuthRequest
 
 import secrets
 import os
@@ -100,18 +100,20 @@ async def oauth_callback(
         refresh_token = result["refresh_token"]
         expires_at = result["expires_at"]
 
-    user = User(username="MAL Username")
+    # TODO store user information from MAL API
+    user = User(
+        username="MAL Username",
+        avatar=None,
+        mal_access_token=access_token,
+        mal_refresh_token=refresh_token,
+        mal_expires_at=expires_at)
+
     session.add(user)
     session.commit()
     session.refresh(user)
 
-    user_token = UserToken(
-        user_id=user.id,
-        mal_access_token=access_token,
-        mal_refresh_token=refresh_token,
-        expires_at=expires_at
-    )
-    session.add(user_token)
+    # Delete the OAuthRequest after successful login
+    session.delete(oauth_request)
     session.commit()
 
     return {"message": "Login successful"}
@@ -154,4 +156,4 @@ def generate_code_challenge(code_verifier: str):
     return code_verifier
 
 def generate_state():
-    return secrets.token_urlsafe(16)
+    return secrets.token_urlsafe(32)
