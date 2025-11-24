@@ -5,7 +5,7 @@ class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     username: str
     avatar: str | None = None
-
+    mal_id: int | None = None
     mal_access_token: str | None = None
     mal_refresh_token: str | None = None
     mal_expires_at: datetime | None = None

@@ -93,20 +93,14 @@ async def oauth_callback(
 
     result = await exchange_code_for_token(code, oauth_request.code_verifier)
 
-    if result["error"]:
-        return {"error": "Invalid state"}
-    else:
-        access_token = result["access_token"]
-        refresh_token = result["refresh_token"]
-        expires_at = result["expires_at"]
+    if result.get("error"):
+        return {"error": result["error"]}
 
-    # TODO store user information from MAL API
-    user = User(
-        username="MAL Username",
-        avatar=None,
-        mal_access_token=access_token,
-        mal_refresh_token=refresh_token,
-        mal_expires_at=expires_at)
+    access_token = result["access_token"]
+    refresh_token = result["refresh_token"]
+    expires_at = result["expires_at"]
+
+    user = await sync_mal_user(session, access_token, refresh_token, expires_at)
 
     session.add(user)
     session.commit()
@@ -117,6 +111,53 @@ async def oauth_callback(
     session.commit()
 
     return {"message": "Login successful"}
+
+async def sync_mal_user(session: Session, access_token: str, refresh_token: str, expires_at: int):
+    # 1. Fetch MAL user profile
+    profile = await fetch_mal_user(access_token)
+    print(profile)
+    
+    # 2. Use MAL ID to identify unique users
+    mal_id = profile["id"]
+    
+    user = session.exec(select(User).where(User.mal_id == mal_id)).first()
+    
+    if user:
+        # update existing user
+        user.mal_access_token = access_token
+        user.mal_refresh_token = refresh_token
+        user.mal_expires_at = expires_at
+        user.avatar = profile.get("picture")
+        user.username = profile.get("name")
+    else:
+        # create new
+        user = User(
+            mal_id=mal_id,
+            username=profile.get("name"),
+            avatar=profile.get("picture"),
+            mal_access_token=access_token,
+            mal_refresh_token=refresh_token,
+            mal_expires_at=expires_at,
+        )
+        session.add(user)
+
+    session.commit()
+    session.refresh(user)
+    return user
+
+async def fetch_mal_user(access_token: str):
+    url = "https://api.myanimelist.net/v2/users/@me"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, headers=headers)
+
+        if resp.status_code != 200:
+            raise HTTPException(status_code=resp.status_code, detail="Failed to fetch user profile from MAL")
+
+        return resp.json()
 
 async def exchange_code_for_token(code: str, code_verifier: str):
     url="https://myanimelist.net/v1/oauth2/token"
