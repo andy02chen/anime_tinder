@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
-from models.anime import User, OAuthRequest
+from models.anime import User, OAuthRequest, JWTToken
 
 import secrets
 import os
@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 import httpx
+
+import jwt
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -43,10 +45,13 @@ load_dotenv()
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 @app.on_event("startup")
 def on_startup():
-    SQLModel.metadata.drop_all(engine)
+    # SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
 
 @app.get('/oauth')
@@ -110,7 +115,58 @@ async def oauth_callback(
     session.delete(oauth_request)
     session.commit()
 
-    return {"message": "Login successful"}
+    jwt_access_token = create_jwt_access_token(user.id)
+    jwt_refresh_token = create_refresh_token()
+
+    store_refresh_token(
+        session,
+        user_id=user.id,
+        refresh_token=jwt_refresh_token
+    )
+
+    return {
+        "message": "Login successful",
+        "access_token": jwt_access_token,
+        "refresh_token": jwt_refresh_token,
+    }
+
+    # return {"message": "Login successful"}
+
+
+def create_refresh_token() -> str:
+    return secrets.token_urlsafe(64)
+
+def create_jwt_access_token(user_id: int) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    payload = {
+        "sub": str(user_id),
+        "exp": expire,
+    }
+
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def store_refresh_token(
+    session: Session,
+    user_id: int, 
+    refresh_token: str, 
+    lifetime_days: int = 30):
+
+    expires_at = datetime.utcnow() + timedelta(days=lifetime_days)
+
+    token_entry = JWTToken(
+        user_id=user_id,
+        refresh_token=refresh_token,
+        expires_at=expires_at,
+        created_at=datetime.utcnow(),
+        revoked=False
+    )
+
+    session.add(token_entry)
+    session.commit()
+    session.refresh(token_entry)
+
+    return token_entry
 
 async def sync_mal_user(session: Session, access_token: str, refresh_token: str, expires_at: int):
     # 1. Fetch MAL user profile
