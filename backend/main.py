@@ -124,13 +124,24 @@ async def oauth_callback(
         refresh_token=jwt_refresh_token
     )
 
-    return {
-        "message": "Login successful",
-        "access_token": jwt_access_token,
-        "refresh_token": jwt_refresh_token,
-    }
+    response = RedirectResponse(url="/home", status_code=303)
 
-    # return {"message": "Login successful"}
+    # Attach HttpOnly cookie
+    set_refresh_token_cookie(response, jwt_access_token,jwt_refresh_token)
+
+    return response
+
+#  Function for storing refresh token in HttpOnly cookie
+def set_refresh_token_cookie(response, jwt_access_token: str, refresh_token: str):
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,          # True if HTTPS (recommended)
+        samesite="Lax",
+        max_age=30 * 24 * 60 * 60,  # 30 days
+    )
+    return response
 
 
 def create_refresh_token() -> str:
