@@ -144,8 +144,22 @@ async def oauth_callback(
 def get_session_info(
     response: Response,
     session: Session = Depends(get_session),
-    refresh_token: str = Cookie(None)
+    refresh_token: str = Cookie(None),
+    access_token: str = Cookie(None)
 ):
+    if access_token:
+        payload = verify_jwt(access_token)
+        if payload:
+            user = session.get(User, payload["sub"])
+            if user:
+                return {
+                    "authenticated": True,
+                    "user": {
+                        "id": user.id,
+                        "username": user.username,
+                    }
+                }
+
     if not refresh_token:
         return {"authenticated": False}
 
@@ -185,6 +199,16 @@ def get_refresh_token(session: Session, refresh_token: str):
     return token
 
 ################## Token Management ##################
+
+# Verify JWT access token
+def verify_jwt(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
 
 #  Function for storing refresh token in HttpOnly cookie
 def set_refresh_token_cookie(response, refresh_token: str):

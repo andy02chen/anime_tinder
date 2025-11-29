@@ -1,3 +1,5 @@
+[ ] function for checking if user is logged in
+[ ] access token expired
 [ ] auto login user if already logged in
 [ ] secure api endpoints with login stuff
 [ ] JWT token
