@@ -1,16 +1,19 @@
-import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { useState, useEffect, type JSX } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import Home from "./Home";
 
-function AppWrapper() {
-  return (
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  );
+// Wrapper to handle protected routes
+function ProtectedRoute({ user, children }: { user: any; children: JSX.Element }) {
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
 }
 
-function App() {
+// Main App component
+function AppContent() {
   const [user, setUser] = useState<{ id: number; username: string } | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,6 +23,7 @@ function App() {
           method: "GET",
           credentials: "include",
         });
+
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
@@ -29,18 +33,23 @@ function App() {
         }
       } catch (err) {
         console.error("Session check failed", err);
+      } finally {
+        setLoading(false);
       }
     }
 
     checkSession();
   }, [navigate]);
 
-  return (
-    <>
-      <div className="bg-gray-500 min-h-screen flex flex-col items-center justify-center">
-        <h1 className="text-3xl text-white">Login</h1>
+  // Show nothing / loader while session is being checked
+  // TODO loading indicator
+  if (loading) return <div className="text-black">Loading...</div>;
 
-        {!user && (
+  return (
+    <main className="bg-gray-500 min-h-screen">
+      {!user && (
+        <div className="flex flex-col items-center justify-center">
+          <h1 className="text-3xl text-white">Login</h1>
           <button
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             onClick={() => {
@@ -49,16 +58,30 @@ function App() {
           >
             Login with MAL
           </button>
-        )}
+        </div>
+      )}
 
-        {user && (
-          <div className="mt-4 text-white">
-            Logged in as: <strong>{user.username}</strong>
-          </div>
-        )}
-      </div>
-    </>
+      <Routes>
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute user={user}>
+              <Home setUser={setUser} />
+            </ProtectedRoute>
+          }
+        />
+        {/* Catch-all route → redirect to landing page */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </main>
   );
 }
 
-export default AppWrapper;
+// Wrap AppContent with BrowserRouter
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  );
+}
