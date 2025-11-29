@@ -1,29 +1,29 @@
 import { useEffect } from "react";
 
-interface LoggedInProps {
-  setAccessToken: (token: string | null) => void;
+interface HomeProps {
+  setUser: (user: { id: number; username: string } | null) => void;
 }
 
-export default function Home({ setAccessToken }: LoggedInProps) {
+export default function Home({ setUser }: HomeProps) {
   useEffect(() => {
     async function loadSession() {
       const res = await fetch("http://127.0.0.1:8000/api/session", {
         method: "GET",
-        credentials: "include", // sends HttpOnly cookie
+        credentials: "include",
       });
 
       const data = await res.json();
 
-      if (data.access_token) {
-        setAccessToken(data.access_token);
+      if (data.user) {
+        setUser(data.user);
       } else {
         console.error("Session load failed:", data);
-        setAccessToken(null);
+        setUser(null);
       }
     }
 
     loadSession();
-  }, [setAccessToken]);
+  }, [setUser]);
 
-  return <div className="text-white">Logging you in...</div>;
+  return <div className="text-white">Loading your session...</div>;
 }

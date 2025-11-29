@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, Cookie
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
@@ -32,9 +32,14 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 app = FastAPI()
 
+origins = [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,6 +58,8 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 def on_startup():
     # SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
+
+################## OAUTH ################## 
 
 @app.get('/oauth')
 async def redirect_to_mal_oauth():
@@ -124,20 +131,68 @@ async def oauth_callback(
         refresh_token=jwt_refresh_token
     )
 
-    response = RedirectResponse(url="/home", status_code=303)
+    response = RedirectResponse(url="http://127.0.0.1:5173/home", status_code=303)
 
     # Attach HttpOnly cookie
-    set_refresh_token_cookie(response, jwt_access_token,jwt_refresh_token)
+    set_refresh_token_cookie(response, jwt_refresh_token)
 
     return response
 
+################## API ##################
+
+@app.get("/api/session")
+def get_session_info(
+    response: Response,
+    session: Session = Depends(get_session),
+    refresh_token: str = Cookie(None)
+):
+    if not refresh_token:
+        return {"authenticated": False}
+
+    token = get_refresh_token(session, refresh_token)
+    if not token:
+        return {"authenticated": False}
+
+    # issue new short-lived access token
+    new_access_token = create_jwt_access_token(token.user_id)
+
+    # store it in a cookie
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=False,   # or True if backend-only
+        secure=True,
+        samesite="Lax",
+        max_age=15 * 60,  # 15 minutes
+    )
+
+    return {
+        "authenticated": True,
+        "user": {
+            "id": token.user.id,
+            "username": token.user.username,
+        }
+    }
+
+def get_refresh_token(session: Session, refresh_token: str):
+    token = session.exec(
+        select(JWTToken)
+        .where(JWTToken.refresh_token == refresh_token)
+        .where(JWTToken.revoked == False)
+        .where(JWTToken.expires_at > datetime.utcnow())
+    ).first()
+
+    return token
+
+################## Token Management ##################
+
 #  Function for storing refresh token in HttpOnly cookie
-def set_refresh_token_cookie(response, jwt_access_token: str, refresh_token: str):
+def set_refresh_token_cookie(response, refresh_token: str):
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,          # True if HTTPS (recommended)
+        secure=True,
         samesite="Lax",
         max_age=30 * 24 * 60 * 60,  # 30 days
     )
@@ -179,10 +234,11 @@ def store_refresh_token(
 
     return token_entry
 
+################## User Syncing with MAL ################## 
+
 async def sync_mal_user(session: Session, access_token: str, refresh_token: str, expires_at: int):
     # 1. Fetch MAL user profile
     profile = await fetch_mal_user(access_token)
-    print(profile)
     
     # 2. Use MAL ID to identify unique users
     mal_id = profile["id"]
@@ -256,7 +312,8 @@ async def exchange_code_for_token(code: str, code_verifier: str):
             "expires_at": datetime.now(timezone.utc) + timedelta(seconds=token_data["expires_in"])
         }
 
-# Generating
+################## Generating ################## 
+
 def generate_code_verifier():
     return secrets.token_urlsafe(64)
 

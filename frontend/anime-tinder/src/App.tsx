@@ -3,15 +3,14 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./Home";
 
 function App() {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [user, setUser] = useState<{ id: number; username: string } | null>(null);
 
   return (
     <BrowserRouter>
       <div className="bg-gray-500 min-h-screen flex flex-col items-center justify-center">
-
         <h1 className="text-3xl text-white">Login</h1>
 
-        {!accessToken && (
+        {!user && (
           <button
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             onClick={() => {
@@ -22,18 +21,15 @@ function App() {
           </button>
         )}
 
-        {accessToken && (
+        {user && (
           <div className="mt-4 text-white">
-            Logged in! Access Token: {accessToken}
+            Logged in as: <strong>{user.username}</strong>
           </div>
         )}
       </div>
 
       <Routes>
-        <Route
-          path="/home"
-          element={<Home setAccessToken={setAccessToken} />}
-        />
+        <Route path="/home" element={<Home setUser={setUser} />} />
       </Routes>
     </BrowserRouter>
   );

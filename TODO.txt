@@ -1,4 +1,5 @@
-[X] store access and refresh token
+[ ] auto login user if already logged in
+[ ] secure api endpoints with login stuff
 [ ] JWT token
 [ ] maybe redirect when error on oauth
 [ ] when user takes too long to oauth accept
