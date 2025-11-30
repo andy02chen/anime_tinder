@@ -56,7 +56,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 
 @app.on_event("startup")
 def on_startup():
-    # SQLModel.metadata.drop_all(engine)
+    SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
 
 ################## OAUTH ################## 
@@ -94,20 +94,48 @@ async def redirect_to_mal_oauth():
 
 @app.get('/oauth/callback')
 async def oauth_callback(
-        code: str = Query(...),
-        state: str = Query(...),
-        session: Session = Depends(get_session)
-    ):
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+    error: str | None = Query(None),
+    message: str | None = Query(None),
+    session: Session = Depends(get_session)
+):
 
-    oauth_request = session.exec(select(OAuthRequest).where(OAuthRequest.state == state)).first()
+    # --- USER DENIED ---
+    if error:
+        return RedirectResponse(
+            "http://127.0.0.1:5173/login?error=cancelled",
+            status_code=303
+        )
+
+    # --- MISSING PARAMS ---
+    if code is None or state is None:
+        return RedirectResponse(
+            "http://127.0.0.1:5173/login?error=missing_params",
+            status_code=303
+        )
+
+    # --- STATE VALIDATION ---
+    oauth_request = session.exec(
+        select(OAuthRequest).where(OAuthRequest.state == state)
+    ).first()
+
     if not oauth_request:
-        return {"error": "Invalid state"}
+        return RedirectResponse(
+            "http://127.0.0.1:5173/login?error=invalid_state",
+            status_code=303
+        )
 
+    # --- EXCHANGE CODE ---
     result = await exchange_code_for_token(code, oauth_request.code_verifier)
 
     if result.get("error"):
-        return {"error": result["error"]}
+        return RedirectResponse(
+            f"http://127.0.0.1:5173/login?error=mal_{result['error']}",
+            status_code=303
+        )
 
+    # --- SUCCESS FLOW ---
     access_token = result["access_token"]
     refresh_token = result["refresh_token"]
     expires_at = result["expires_at"]
@@ -118,25 +146,20 @@ async def oauth_callback(
     session.commit()
     session.refresh(user)
 
-    # Delete the OAuthRequest after successful login
+    # Clean up OAuthRequest
     session.delete(oauth_request)
     session.commit()
 
     jwt_access_token = create_jwt_access_token(user.id)
     jwt_refresh_token = create_refresh_token()
 
-    store_refresh_token(
-        session,
-        user_id=user.id,
-        refresh_token=jwt_refresh_token
-    )
+    store_refresh_token(session, user_id=user.id, refresh_token=jwt_refresh_token)
 
-    response = RedirectResponse(url="http://127.0.0.1:5173/home", status_code=303)
-
-    # Attach HttpOnly cookie
+    response = RedirectResponse("http://127.0.0.1:5173/home", status_code=303)
     set_refresh_token_cookie(response, jwt_refresh_token)
 
     return response
+
 
 ################## API ##################
 

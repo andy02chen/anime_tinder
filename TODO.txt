@@ -1,4 +1,6 @@
 [ ] loading indicator
 [ ] maybe redirect when error on oauth
 [ ] when user takes too long to oauth accept
-[ ] home screen after Login
+
+Optional 
+[ ] Log out button

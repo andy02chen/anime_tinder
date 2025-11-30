@@ -1,6 +1,8 @@
 import { useState, useEffect, type JSX } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import Home from "./Home";
+import { ToastContainer, toast } from 'react-toastify';
+import Login from "./Login";
 
 // Wrapper to handle protected routes
 function ProtectedRoute({ user, children }: { user: any; children: JSX.Element }) {
@@ -24,15 +26,20 @@ function AppContent() {
           credentials: "include",
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) {
-            setUser(data.user);
-            navigate("/home", { replace: true });
-          }
+        if (!res.ok) {
+          const err = await res.json();
+          toast.error(err.error || "Session expired. Please log in again.");
+          return;
+        }
+
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+          navigate("/home", { replace: true });
         }
       } catch (err) {
-        console.error("Session check failed", err);
+        console.log(err);
+        toast.error("Failed to check session. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -47,8 +54,9 @@ function AppContent() {
 
   return (
     <main className="bg-gray-500 min-h-screen">
+      <Login/>
       {!user && (
-        <div className="flex flex-col items-center justify-center">
+        <div className="h-screen flex flex-col items-center justify-center">
           <h1 className="text-3xl text-white">Login</h1>
           <button
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -62,6 +70,7 @@ function AppContent() {
       )}
 
       <Routes>
+        <Route path="/login"/>
         <Route
           path="/home"
           element={
