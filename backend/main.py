@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response, Cookie
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, Cookie, status
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
@@ -184,11 +184,17 @@ def get_session_info(
                 }
 
     if not refresh_token:
-        return {"authenticated": False}
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing refresh token"
+        )
 
     token = get_refresh_token(session, refresh_token)
     if not token:
-        return {"authenticated": False}
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token"
+        )
 
     # issue new short-lived access token
     new_access_token = create_jwt_access_token(token.user_id)

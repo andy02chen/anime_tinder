@@ -2,7 +2,7 @@ import { useState, useEffect, type JSX } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import Home from "./Home";
 import { ToastContainer, toast } from 'react-toastify';
-import Login from "./Login";
+import Loader from "./Loader";
 
 // Wrapper to handle protected routes
 function ProtectedRoute({ user, children }: { user: any; children: JSX.Element }) {
@@ -28,6 +28,7 @@ function AppContent() {
 
         if (!res.ok) {
           const err = await res.json();
+          console.log(err);
           toast.error(err.error || "Session expired. Please log in again.");
           return;
         }
@@ -48,29 +49,28 @@ function AppContent() {
     checkSession();
   }, [navigate]);
 
-  // Show nothing / loader while session is being checked
-  // TODO loading indicator
-  if (loading) return <div className="text-black">Loading...</div>;
-
   return (
-    <main className="bg-gray-500 min-h-screen">
-      <Login/>
-      {!user && (
-        <div className="h-screen flex flex-col items-center justify-center">
-          <h1 className="text-3xl text-white">Login</h1>
-          <button
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            onClick={() => {
-              window.location.href = "http://127.0.0.1:8000/oauth";
-            }}
-          >
-            Login with MAL
-          </button>
-        </div>
-      )}
+  <main className="bg-gray-500 min-h-screen flex items-center justify-center">
+    <ToastContainer aria-label={undefined} />
+    {loading && <Loader />}
 
+    {!loading && !user && (
+      <div className="h-screen flex flex-col items-center justify-center">
+        <h1 className="text-3xl text-white">Login</h1>
+        <button
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={() => {
+            window.location.href = "http://127.0.0.1:8000/oauth";
+          }}
+        >
+          Login with MAL
+        </button>
+      </div>
+    )}
+
+    {!loading && (
       <Routes>
-        <Route path="/login"/>
+        <Route path="/login" />
         <Route
           path="/home"
           element={
@@ -79,10 +79,10 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
-        {/* Catch-all route → redirect to landing page */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </main>
+    )}
+  </main>
   );
 }
 
