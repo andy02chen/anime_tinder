@@ -132,7 +132,7 @@ async def oauth_callback(
         created_at = created_at.replace(tzinfo=timezone.utc)
 
     time_elapsed = datetime.now(timezone.utc) - created_at
-    if time_elapsed > timedelta(minutes=1):
+    if time_elapsed > timedelta(minutes=10):
         # Clean up expired OAuthRequest
         session.delete(oauth_request)
         session.commit()
