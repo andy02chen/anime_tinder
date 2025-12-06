@@ -126,6 +126,22 @@ async def oauth_callback(
             status_code=303
         )
 
+    # --- TOO LONG SINCE INITIATION ---
+    created_at = oauth_request.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+
+    time_elapsed = datetime.now(timezone.utc) - created_at
+    if time_elapsed > timedelta(minutes=1):
+        # Clean up expired OAuthRequest
+        session.delete(oauth_request)
+        session.commit()
+
+        return RedirectResponse(
+            "http://127.0.0.1:5173/login?error=long_wait",
+            status_code=303
+        )
+
     # --- EXCHANGE CODE ---
     result = await exchange_code_for_token(code, oauth_request.code_verifier)
 

@@ -11,6 +11,7 @@ export default function Login() {
         cancelled: "You cancelled the MAL login.",
         missing_params: "Something went wrong. Try logging in again.",
         invalid_state: "Invalid session, please retry.",
+        long_wait: "Login took too long. Please try again.",
       };
 
       toast.error(messages[error] || "Login failed.");

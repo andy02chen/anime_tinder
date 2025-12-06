@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-route
 import Home from "./Home";
 import { ToastContainer, toast } from 'react-toastify';
 import Loader from "./Loader";
+import Login from "./Login";
 
 // Wrapper to handle protected routes
 function ProtectedRoute({ user, children }: { user: any; children: JSX.Element }) {
@@ -29,7 +30,6 @@ function AppContent() {
         if (!res.ok) {
           const err = await res.json();
           console.log(err);
-          toast.error(err.error || "Session expired. Please log in again.");
           return;
         }
 
@@ -40,7 +40,6 @@ function AppContent() {
         }
       } catch (err) {
         console.log(err);
-        toast.error("Failed to check session. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -51,7 +50,7 @@ function AppContent() {
 
   return (
   <main className="bg-gray-500 min-h-screen flex items-center justify-center">
-    <ToastContainer aria-label={undefined} />
+    <Login/>
     {loading && <Loader />}
 
     {!loading && !user && (

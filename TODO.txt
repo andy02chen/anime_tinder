@@ -1,4 +1,1 @@
-[ ] when user takes too long to oauth accept
-
-Optional 
 [ ] Log out button
