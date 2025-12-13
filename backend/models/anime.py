@@ -7,6 +7,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str
     avatar: Optional[str] = None
+    new_user: bool = Field(default=True)
 
     # MAL-related fields
     mal_id: Optional[int] = None

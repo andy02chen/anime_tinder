@@ -1,7 +1,7 @@
-export default function Home() {
+export default function Onboarding() {
   return (
     <div className="text-3xl text-white">
-      Yokoso
+      Onboarding Page
     </div>
   );
 }

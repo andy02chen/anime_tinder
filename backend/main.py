@@ -233,6 +233,7 @@ def get_session_info(
         }
     }
 
+
 def get_refresh_token(session: Session, refresh_token: str):
     token = session.exec(
         select(JWTToken)
@@ -242,6 +243,37 @@ def get_refresh_token(session: Session, refresh_token: str):
     ).first()
 
     return token
+
+################### Pages ##################
+
+@app.get("/api/user")
+def get_newuser(session: Session = Depends(get_session), access_token: str = Cookie(None)):
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    payload = verify_jwt(access_token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    user = session.get(User, payload["sub"])
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Check if new user
+    if user.new_user:
+        return {
+            "is_new_user": True
+        }
+
+    return {
+        "is_new_user": False
+    }
+
+@app.get("/api/onboarding")
+def onboarding():
+    return {
+        "message": "New user onboarding step"
+    }
 
 ################## Token Management ##################
 

@@ -1,17 +1,9 @@
-import { useState, useEffect, type JSX } from "react";
+import { useState, useEffect} from "react";
 import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import Home from "./Home";
-import { ToastContainer, toast } from 'react-toastify';
 import Loader from "./Loader";
-import Login from "./Login";
-
-// Wrapper to handle protected routes
-function ProtectedRoute({ user, children }: { user: any; children: JSX.Element }) {
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-  return children;
-}
+import Onboarding from "./Onboarding";
+import ProtectedRoute from "./ProtectedRoute";
 
 // Main App component
 function AppContent() {
@@ -36,7 +28,16 @@ function AppContent() {
         const data = await res.json();
         if (data.user) {
           setUser(data.user);
-          navigate("/home", { replace: true });
+          const userRes = await fetch("http://127.0.0.1:8000/api/user", {
+            credentials: "include",
+          });
+          const userData = await userRes.json();
+
+          if (userData.is_new_user) {
+            navigate("/onboarding", { replace: true });
+          } else {
+            navigate("/home", { replace: true });
+          }
         }
       } catch (err) {
         console.log(err);
@@ -49,39 +50,41 @@ function AppContent() {
   }, [navigate]);
 
   return (
-  <main className="bg-gray-500 min-h-screen flex items-center justify-center">
-    <Login/>
-    {loading && <Loader />}
+    <main className="bg-gray-500 min-h-screen flex items-center justify-center">
+      {loading && <Loader />}
 
-    {!loading && !user && (
-      <div className="h-screen flex flex-col items-center justify-center">
-        <h1 className="text-3xl text-white">Login</h1>
-        <button
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          onClick={() => {
-            window.location.href = "http://127.0.0.1:8000/oauth";
-          }}
-        >
-          Login with MAL
-        </button>
-      </div>
-    )}
+      {!loading && !user && (
+        <div className="h-screen flex flex-col items-center justify-center">
+          <h1 className="text-3xl text-white">Login</h1>
+          <button
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => (window.location.href = "http://127.0.0.1:8000/oauth")}
+          >
+            Login with MAL
+          </button>
+        </div>
+      )}
 
-    {!loading && (
       <Routes>
-        <Route path="/login" />
         <Route
-          path="/home"
+          path="/onboarding"
           element={
-            <ProtectedRoute user={user}>
-              <Home setUser={setUser} />
+            <ProtectedRoute user={user} loading={loading}>
+              <Onboarding />
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute user={user} loading={loading}>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
-    )}
-  </main>
+    </main>
   );
 }
 
