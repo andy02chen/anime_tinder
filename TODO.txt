@@ -1,1 +1,7 @@
+[ ] Set up anime taste profile database
+
+[ ] Create taste profiles by analyzing the anime data
+[ ] Make script to fetch top 2000 anime weekly
+    [ ] Filter it and update db if ranking, score, synopsis, genres, taste profile changes
+
 [ ] Log out button
